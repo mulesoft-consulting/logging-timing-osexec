@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:https="http://www.mulesoft.org/schema/mule/https" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.6.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/https http://www.mulesoft.org/schema/mule/https/current/mule-https.xsd http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+
+	<spring:beans>
+		<spring:bean id="rand" class="java.util.Random" scope="singleton" />
+
+		<spring:bean class="com.mulesoft.services.loggingtiming.LoggingAndTimingNotificationsListenerSetup" lazy-init="false" scope="singleton" />
+	</spring:beans>
+
+	<http:listener-config name="http-listener-config" host="0.0.0.0" port="8081" doc:name="HTTP listener" />
+
+	<flow name="expose-service" processingStrategy="synchronous">
+		<http:listener config-ref="http-listener-config" path="/service" doc:name="listen on /service" />
+
+		<logger level="INFO" doc:name="Logger" />
+
+		<flow-ref name="do-predictable-stuff" />
+		<flow-ref name="do-important-stuff" />
+
+		<set-payload value="ok" />
+
+		<logger level="INFO" doc:name="Logger" />
+	</flow>
+
+	<flow name="do-predictable-stuff" processingStrategy="synchronous">
+		<expression-component><![CDATA[
+		Thread.sleep(10)
+		]]></expression-component>
+	</flow>
+
+	<flow name="do-important-stuff" processingStrategy="synchronous">
+		<expression-component><![CDATA[
+		Thread.sleep(10 + app.registry.get("rand").nextInt(1000))
+		]]></expression-component>
+	</flow>
+
+	<flow name="expose-osexec" processingStrategy="synchronous">
+		<http:listener config-ref="http-listener-config" path="/osexec" parseRequest="false" doc:name="listen on /osexec" />
+
+		<object-to-string-transformer />
+		<custom-processor class="com.mulesoft.services.osexec.OSExec" />
+	</flow>
+
+</mule>

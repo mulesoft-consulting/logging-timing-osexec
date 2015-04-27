@@ -11,7 +11,6 @@ import org.mule.api.MuleMessage;
 import org.mule.api.endpoint.OutboundEndpoint;
 import org.mule.api.processor.LoggerMessageProcessor;
 import org.mule.api.processor.MessageProcessor;
-import org.mule.module.db.internal.processor.AbstractDbMessageProcessor;
 import org.mule.module.http.internal.request.DefaultHttpRequester;
 import org.mule.processor.chain.SubflowInterceptingChainLifecycleWrapper;
 
@@ -53,7 +52,7 @@ public class ExecutionEventProcessor {
 	public String treatAsCallOutToDestination(MessageProcessor mp) {
 		if (mp == null) return null;
 
-		if (mp instanceof AbstractDbMessageProcessor) return "JDBC Database"; // TODO return JDBC URL or similar
+		// if (mp instanceof AbstractDbMessageProcessor) return "JDBC Database"; // TODO return JDBC URL or similar
 		if (mp instanceof DefaultHttpRequester) return ((DefaultHttpRequester) mp).getHost();
 
 		return null;

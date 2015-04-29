@@ -20,14 +20,10 @@ http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mul
 	<flow name="expose-service" processingStrategy="synchronous">
 		<http:listener config-ref="http-listener-config" path="/service" doc:name="listen on /service" />
 
-		<logger level="INFO" doc:name="Logger" />
-
 		<flow-ref name="do-predictable-stuff" />
 		<flow-ref name="do-important-stuff" />
 
 		<set-payload value="ok" />
-
-		<logger level="INFO" doc:name="Logger" />
 	</flow>
 
 	<flow name="do-predictable-stuff" processingStrategy="synchronous">

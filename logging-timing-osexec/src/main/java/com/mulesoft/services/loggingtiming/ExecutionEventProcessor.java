@@ -14,6 +14,9 @@ import org.mule.api.processor.MessageProcessor;
 import org.mule.module.http.internal.request.DefaultHttpRequester;
 import org.mule.processor.chain.SubflowInterceptingChainLifecycleWrapper;
 
+import com.jamonapi.Monitor;
+import com.jamonapi.MonitorFactory;
+
 /**
  * "Business logic" for processing execution events such as the start/end of flow execution, call-outs and message processor execution.
  * 
@@ -32,6 +35,8 @@ public class ExecutionEventProcessor {
 	private static final String FLOW_LIKE_TIMING_ID = ":flowlike:";
 	private static final String MSG_PROC_TIMING_ID = ":mp:";
 	private static final String CALL_OUT_TIMING_ID = ":callout:";
+
+	private static final String UNITS_MS = "milliseconds";
 
 	private final ConcurrentMap<String, Long> fallbackStartTimestamps = new ConcurrentHashMap<String, Long>();
 
@@ -85,7 +90,8 @@ public class ExecutionEventProcessor {
 		final MuleMessage msg = evt.getMessage();
 		final String name = flowLikeName(flowName);
 		final long dt = endTiming(timestamp, msg, FLOW_LIKE_TIMING_ID, name);
-		log(LogLevel.INFO, evt.getMuleContext(), msg, flowName, timestamp, "<===== ending " + name + " | " + dt);
+		final Monitor mon = MonitorFactory.add(name, UNITS_MS, dt);
+		log(LogLevel.INFO, evt.getMuleContext(), msg, flowName, timestamp, "<===== ending " + name + " | " + dt + " / " + monLogMsg(mon));
 	}
 
 	public boolean processMessageProcessors() {
@@ -108,8 +114,10 @@ public class ExecutionEventProcessor {
 	 */
 	public void endMessageProcessor(long timestamp, MuleEvent evt, String flowName, MessageProcessor mp, String processorPath) {
 		final MuleMessage msg = evt.getMessage();
+		final String name = mpLogMsg(mp, processorPath);
 		final long dt = endTiming(timestamp, msg, MSG_PROC_TIMING_ID, processorPath);
-		log(LogLevel.DEBUG, evt.getMuleContext(), msg, flowName, timestamp, "<----- ending " + mpLogMsg(mp, processorPath) + " | " + dt);
+		final Monitor mon = MonitorFactory.add(name, UNITS_MS, dt);
+		log(LogLevel.DEBUG, evt.getMuleContext(), msg, flowName, timestamp, "<----- ending " + name + " | " + dt + " / " + monLogMsg(mon));
 	}
 
 	public boolean processCallOuts() {
@@ -131,7 +139,9 @@ public class ExecutionEventProcessor {
 	 */
 	public void endCallOut(long timestamp, MuleMessage msg, String flowName, String destination) {
 		final long dt = endTiming(timestamp, msg, CALL_OUT_TIMING_ID, destination);
-		log(LogLevel.INFO, msg.getMuleContext(), msg, flowName, timestamp, "<<<<< returned from " + destination + " | " + dt);
+		final Monitor mon = MonitorFactory.add(destination, UNITS_MS, dt);
+		log(LogLevel.INFO, msg.getMuleContext(), msg, flowName, timestamp, "<<<<< returned from " + destination + " | " + dt + " / "
+		        + monLogMsg(mon));
 	}
 
 	private String flowLikeName(String flowName) {
@@ -140,6 +150,10 @@ public class ExecutionEventProcessor {
 
 	private String mpLogMsg(MessageProcessor mp, String path) {
 		return (mp == null ? "processor" : mp.getClass().getSimpleName()) + " at " + path;
+	}
+
+	private String monLogMsg(Monitor mon) {
+		return new StringBuilder().append(mon.getAvg()).append(" (").append(Math.round(mon.getHits())).append(")").toString();
 	}
 
 	private void log(LogLevel level, MuleContext ctxt, MuleMessage msg, String flowName, long timestamp, String logmsg) {
@@ -174,7 +188,7 @@ public class ExecutionEventProcessor {
 		final String key = startTstampsKey(msg, timingId, timedObjectId);
 		final Long startTstamp = startTstamps(msg).remove(key);
 		if (startTstamp == null) {
-			LOG.warn("found no start timestamp for timing with key " + key + " and so cannot end timing - assuming elapsed time of 0");
+			// LOG.warn("found no start timestamp for timing with key " + key + " and so cannot end timing - assuming elapsed time of 0");
 			return 0;
 		}
 

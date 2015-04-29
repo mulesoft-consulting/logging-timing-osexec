@@ -14,10 +14,16 @@ import org.mule.api.processor.MessageProcessor;
 import org.mule.module.http.internal.request.DefaultHttpRequester;
 import org.mule.processor.chain.SubflowInterceptingChainLifecycleWrapper;
 
-import com.jamonapi.Monitor;
-import com.jamonapi.MonitorFactory;
-
+/**
+ * "Business logic" for processing execution events such as the start/end of flow execution, call-outs and message processor execution.
+ * 
+ * @author gerald.loeffler@mulesoft.com
+ */
 public class ExecutionEventProcessor {
+
+	private enum LogLevel {
+		DEBUG, INFO
+	}
 
 	private static final Log LOG = LogFactory.getLog(ExecutionEventProcessor.class);
 
@@ -26,8 +32,6 @@ public class ExecutionEventProcessor {
 	private static final String FLOW_LIKE_TIMING_ID = ":flowlike:";
 	private static final String MSG_PROC_TIMING_ID = ":mp:";
 	private static final String CALL_OUT_TIMING_ID = ":callout:";
-
-	private static final String UNITS_MS = "milliseconds";
 
 	private final ConcurrentMap<String, Long> fallbackStartTimestamps = new ConcurrentHashMap<String, Long>();
 
@@ -58,6 +62,10 @@ public class ExecutionEventProcessor {
 		return null;
 	}
 
+	public boolean processFlowLikes() {
+		return LOG.isInfoEnabled();
+	}
+
 	/**
 	 * Register the start of the local execution of the flow with the given name or an unknown exception strategy, where flowName is null in
 	 * the latter case.
@@ -65,7 +73,7 @@ public class ExecutionEventProcessor {
 	public void startFlowLike(long timestamp, MuleEvent evt, String flowName) {
 		final MuleMessage msg = evt.getMessage();
 		final String name = flowLikeName(flowName);
-		log(evt.getMuleContext(), msg, flowName, timestamp, "=====> starting " + name);
+		log(LogLevel.INFO, evt.getMuleContext(), msg, flowName, timestamp, "=====> starting " + name);
 		startTiming(timestamp, msg, FLOW_LIKE_TIMING_ID, name);
 	}
 
@@ -77,8 +85,11 @@ public class ExecutionEventProcessor {
 		final MuleMessage msg = evt.getMessage();
 		final String name = flowLikeName(flowName);
 		final long dt = endTiming(timestamp, msg, FLOW_LIKE_TIMING_ID, name);
-		final Monitor mon = MonitorFactory.add(name, UNITS_MS, dt);
-		log(evt.getMuleContext(), msg, flowName, timestamp, "<===== ending " + name + " | " + dt + " / " + monLogMsg(mon));
+		log(LogLevel.INFO, evt.getMuleContext(), msg, flowName, timestamp, "<===== ending " + name + " | " + dt);
+	}
+
+	public boolean processMessageProcessors() {
+		return LOG.isDebugEnabled();
 	}
 
 	/**
@@ -87,7 +98,7 @@ public class ExecutionEventProcessor {
 	 */
 	public void startMessageProcessor(long timestamp, MuleEvent evt, String flowName, MessageProcessor mp, String processorPath) {
 		final MuleMessage msg = evt.getMessage();
-		log(evt.getMuleContext(), msg, flowName, timestamp, "-----> starting " + mpLogMsg(mp, processorPath));
+		log(LogLevel.DEBUG, evt.getMuleContext(), msg, flowName, timestamp, "-----> starting " + mpLogMsg(mp, processorPath));
 		startTiming(timestamp, msg, MSG_PROC_TIMING_ID, processorPath);
 	}
 
@@ -97,10 +108,12 @@ public class ExecutionEventProcessor {
 	 */
 	public void endMessageProcessor(long timestamp, MuleEvent evt, String flowName, MessageProcessor mp, String processorPath) {
 		final MuleMessage msg = evt.getMessage();
-		final String name = mpLogMsg(mp, processorPath);
 		final long dt = endTiming(timestamp, msg, MSG_PROC_TIMING_ID, processorPath);
-		final Monitor mon = MonitorFactory.add(name, UNITS_MS, dt);
-		log(evt.getMuleContext(), msg, flowName, timestamp, "<----- ending " + name + " | " + dt + " / " + monLogMsg(mon));
+		log(LogLevel.DEBUG, evt.getMuleContext(), msg, flowName, timestamp, "<----- ending " + mpLogMsg(mp, processorPath) + " | " + dt);
+	}
+
+	public boolean processCallOuts() {
+		return LOG.isInfoEnabled();
 	}
 
 	/**
@@ -108,7 +121,7 @@ public class ExecutionEventProcessor {
 	 * is null then the call-out is made in the context of an exception strategy.
 	 */
 	public void startCallOut(long timestamp, MuleMessage msg, String flowName, String destination) {
-		log(msg.getMuleContext(), msg, flowName, timestamp, ">>>>> calling-out to " + destination);
+		log(LogLevel.INFO, msg.getMuleContext(), msg, flowName, timestamp, ">>>>> calling-out to " + destination);
 		startTiming(timestamp, msg, CALL_OUT_TIMING_ID, destination);
 	}
 
@@ -118,8 +131,7 @@ public class ExecutionEventProcessor {
 	 */
 	public void endCallOut(long timestamp, MuleMessage msg, String flowName, String destination) {
 		final long dt = endTiming(timestamp, msg, CALL_OUT_TIMING_ID, destination);
-		final Monitor mon = MonitorFactory.add(destination, UNITS_MS, dt);
-		log(msg.getMuleContext(), msg, flowName, timestamp, "<<<<< returned from " + destination + " | " + dt + " / " + monLogMsg(mon));
+		log(LogLevel.INFO, msg.getMuleContext(), msg, flowName, timestamp, "<<<<< returned from " + destination + " | " + dt);
 	}
 
 	private String flowLikeName(String flowName) {
@@ -130,19 +142,18 @@ public class ExecutionEventProcessor {
 		return (mp == null ? "processor" : mp.getClass().getSimpleName()) + " at " + path;
 	}
 
-	private String monLogMsg(Monitor mon) {
-		return new StringBuilder().append(mon.getAvg()).append(" (").append(Math.round(mon.getHits())).append(")").toString();
-	}
-
-	private void log(MuleContext ctxt, MuleMessage msg, String flowName, long timestamp, String logmsg) {
+	private void log(LogLevel level, MuleContext ctxt, MuleMessage msg, String flowName, long timestamp, String logmsg) {
 		final String msgId = msg == null ? null : msg.getMessageRootId();
-		if (ctxt == null) log(null, null, null, msgId, flowName, timestamp, logmsg);
-		else log(ctxt.getClusterId(), ctxt.getClusterNodeId(), ctxt.getConfiguration().getId(), flowName, msgId, timestamp, logmsg);
+		if (ctxt == null) log(level, null, null, null, msgId, flowName, timestamp, logmsg);
+		else log(level, ctxt.getClusterId(), ctxt.getClusterNodeId(), ctxt.getConfiguration().getId(), flowName, msgId, timestamp, logmsg);
 	}
 
-	private void log(String clusterId, Integer clusterNodeId, String app, String flowName, String messageId, long timestamp, String logmsg) {
-		LOG.info(clusterId + " / " + clusterNodeId + " | " + app + " / " + flowName + " | " + messageId + " | " + timestamp + " | "
-		        + logmsg);
+	private void log(LogLevel level, String clusterId, Integer clusterNodeId, String app, String flowName, String messageId,
+	        long timestamp, String logmsg) {
+		final String l = clusterId + " / " + clusterNodeId + " | " + app + " / " + flowName + " | " + messageId + " | " + timestamp + " | "
+		        + logmsg;
+		if (LogLevel.DEBUG.equals(level)) LOG.debug(l);
+		else LOG.info(l);
 	}
 
 	/**
@@ -163,7 +174,7 @@ public class ExecutionEventProcessor {
 		final String key = startTstampsKey(msg, timingId, timedObjectId);
 		final Long startTstamp = startTstamps(msg).remove(key);
 		if (startTstamp == null) {
-			// LOG.warn("found no start timestamp for timing with key " + key + " and so cannot end timing - assuming elapsed time of 0");
+			LOG.warn("found no start timestamp for timing with key " + key + " and so cannot end timing - assuming elapsed time of 0");
 			return 0;
 		}
 
@@ -202,4 +213,5 @@ public class ExecutionEventProcessor {
 	private String startTstampsKey(MuleMessage msg, String timingId, String timedObjectId) {
 		return new StringBuilder(msg.getMessageRootId()).append(timingId).append(timedObjectId).toString();
 	}
+
 }

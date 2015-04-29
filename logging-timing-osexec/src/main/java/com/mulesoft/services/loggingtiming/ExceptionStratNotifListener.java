@@ -19,6 +19,8 @@ public class ExceptionStratNotifListener implements ExceptionStrategyNotificatio
 
 	@Override
 	public void onNotification(ExceptionStrategyNotification n) {
+		if (!proc.processFlowLikes()) return;
+
 		final long tstamp = n.getTimestamp();
 		final MuleEvent evt = (MuleEvent) n.getSource();
 

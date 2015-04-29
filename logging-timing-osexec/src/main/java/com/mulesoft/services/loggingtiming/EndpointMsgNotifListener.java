@@ -19,6 +19,8 @@ public class EndpointMsgNotifListener implements EndpointMessageNotificationList
 
 	@Override
 	public void onNotification(EndpointMessageNotification n) {
+		if (!proc.processCallOuts()) return;
+
 		final long tstamp = n.getTimestamp();
 		final MuleMessage msg = n.getSource();
 		final String flowName = n.getResourceIdentifier();
@@ -30,4 +32,5 @@ public class EndpointMsgNotifListener implements EndpointMessageNotificationList
 		else if (act == EndpointMessageNotification.MESSAGE_DISPATCH_END || act == EndpointMessageNotification.MESSAGE_REQUEST_END
 		        || act == EndpointMessageNotification.MESSAGE_SEND_END) proc.endCallOut(tstamp, msg, flowName, destination);
 	}
+
 }

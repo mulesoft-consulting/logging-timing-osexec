@@ -19,6 +19,8 @@ public class PipelineMsgNotifListener implements PipelineMessageNotificationList
 
 	@Override
 	public void onNotification(PipelineMessageNotification n) {
+		if (!proc.processFlowLikes()) return;
+
 		final long tstamp = n.getTimestamp();
 		final MuleEvent evt = (MuleEvent) n.getSource();
 		final String flowName = n.getResourceIdentifier();

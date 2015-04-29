@@ -20,6 +20,8 @@ public class MsgProcNotifListener implements MessageProcessorNotificationListene
 
 	@Override
 	public void onNotification(MessageProcessorNotification n) {
+		if (!proc.processCallOuts() && !proc.processMessageProcessors()) return;
+
 		final MessageProcessor mp = n.getProcessor();
 		if (proc.ignore(mp)) return;
 
@@ -33,11 +35,11 @@ public class MsgProcNotifListener implements MessageProcessorNotificationListene
 
 		final int act = n.getAction();
 		if (act == MessageProcessorNotification.MESSAGE_PROCESSOR_PRE_INVOKE) {
-			if (treatAsCallOut) proc.startCallOut(tstamp, evt.getMessage(), flowName, destination);
-			else proc.startMessageProcessor(tstamp, evt, flowName, mp, mpPath);
+			if (treatAsCallOut && proc.processCallOuts()) proc.startCallOut(tstamp, evt.getMessage(), flowName, destination);
+			else if (proc.processMessageProcessors()) proc.startMessageProcessor(tstamp, evt, flowName, mp, mpPath);
 		} else if (act == MessageProcessorNotification.MESSAGE_PROCESSOR_POST_INVOKE) {
-			if (treatAsCallOut) proc.endCallOut(tstamp, evt.getMessage(), flowName, destination);
-			else proc.endMessageProcessor(tstamp, evt, flowName, mp, mpPath);
+			if (treatAsCallOut && proc.processCallOuts()) proc.endCallOut(tstamp, evt.getMessage(), flowName, destination);
+			else if (proc.processMessageProcessors()) proc.endMessageProcessor(tstamp, evt, flowName, mp, mpPath);
 		}
 	}
 }

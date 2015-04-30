@@ -23,7 +23,7 @@ public class MsgProcNotifListener implements MessageProcessorNotificationListene
 		if (!proc.processCallOuts() && !proc.processMessageProcessors()) return;
 
 		final MessageProcessor mp = n.getProcessor();
-		if (proc.ignore(mp)) return;
+		if (proc.ignoreMessageProcessor(mp)) return;
 
 		final long tstamp = n.getTimestamp();
 		final MuleEvent evt = n.getSource();

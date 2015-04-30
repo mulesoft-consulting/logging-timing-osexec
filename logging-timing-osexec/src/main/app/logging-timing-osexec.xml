@@ -1,13 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:https="http://www.mulesoft.org/schema/mule/https" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:https="http://www.mulesoft.org/schema/mule/https" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
 	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.6.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="
+	xmlns:spring="http://www.springframework.org/schema/beans" xmlns:management="http://www.mulesoft.org/schema/mule/management" version="EE-3.6.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd 
 http://www.mulesoft.org/schema/mule/https http://www.mulesoft.org/schema/mule/https/current/mule-https.xsd http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
-http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/management http://www.mulesoft.org/schema/mule/management/current/mule-management.xsd">
+
+	<management:jmx-server>
+		<management:connector-server url="service:jmx:rmi:///jndi/rmi://0.0.0.0:1099/jmxserver" />
+		<management:credentials>
+			<spring:entry key="gerald" value="gerald" />
+		</management:credentials>
+	</management:jmx-server>
+	<management:jmx-mx4j-adaptor jmxAdaptorUrl="http://0.0.0.0:8081/" authenticationMethod="basic" login="gerald"
+		password="gerald" />
 
 	<spring:beans>
 		<spring:bean id="rand" class="java.util.Random" scope="singleton" />
@@ -15,7 +26,11 @@ http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mul
 		<spring:bean class="com.mulesoft.services.loggingtiming.LoggingAndTimingNotificationsListenerSetup" lazy-init="false" scope="singleton" />
 	</spring:beans>
 
-	<http:listener-config name="http-listener-config" host="0.0.0.0" port="8081" doc:name="HTTP listener" />
+	<http:listener-config name="http-listener-config" protocol="HTTPS" host="0.0.0.0" port="8082" doc:name="HTTPS listener">
+		<tls:context>
+			<tls:key-store path="server.jks" password="storepwd" keyPassword="keypwd" />
+		</tls:context>
+	</http:listener-config>
 
 	<flow name="expose-service" processingStrategy="synchronous">
 		<http:listener config-ref="http-listener-config" path="/service" doc:name="listen on /service" />
@@ -27,15 +42,13 @@ http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mul
 	</flow>
 
 	<flow name="do-predictable-stuff" processingStrategy="synchronous">
-		<expression-component><![CDATA[
-		Thread.sleep(10)
-		]]></expression-component>
+		<set-variable variableName="delay" value="#[10]" doc:name="set delay of 10 ms" />
+		<expression-component>Thread.sleep(delay)</expression-component>
 	</flow>
 
 	<flow name="do-important-stuff" processingStrategy="synchronous">
-		<expression-component><![CDATA[
-		Thread.sleep(10 + app.registry.get("rand").nextInt(1000))
-		]]></expression-component>
+		<set-variable variableName="delay" value="#[10 + app.registry.get('rand').nextInt(1000)]" doc:name="set delay of 10 - 1009 ms" />
+		<expression-component>Thread.sleep(delay)</expression-component>
 	</flow>
 
 	<flow name="expose-osexec" processingStrategy="synchronous">

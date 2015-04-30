@@ -1,5 +1,6 @@
 package com.mulesoft.services.loggingtiming;
 
+import java.net.InetAddress;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -38,37 +39,34 @@ public class ExecutionEventProcessor {
 
 	private static final String UNITS_MS = "milliseconds";
 
+	private final String localIPAddress;
+
 	private final ConcurrentMap<String, Long> fallbackStartTimestamps = new ConcurrentHashMap<String, Long>();
 
-	/**
-	 * Whether to ignore the execution of the given message processor for the purpose of logging/timing.
-	 */
-	public boolean ignore(MessageProcessor mp) {
-		if (mp == null) return true;
-
-		if (mp instanceof LoggerMessageProcessor) return true; // TODO may actually want to __not__ ignore the time spent on logging!
-		if (mp.getClass().isAnonymousClass()) return true; // flow-ref to private flow
-		if (mp instanceof SubflowInterceptingChainLifecycleWrapper) return true; // flow-ref to sub-flow
-		if (mp instanceof OutboundEndpoint) return true; // outbound endpoints are captured as call-outs
-
-		return false;
-	}
-
-	/**
-	 * Returns a non-null destination String if the execution of the given message processor should be treated as a call-out (to the
-	 * returned destination) rather than as a generic message processor execution step.
-	 */
-	public String treatAsCallOutToDestination(MessageProcessor mp) {
-		if (mp == null) return null;
-
-		// if (mp instanceof AbstractDbMessageProcessor) return "JDBC Database"; // TODO return JDBC URL or similar
-		if (mp instanceof DefaultHttpRequester) return ((DefaultHttpRequester) mp).getHost();
-
-		return null;
+	public ExecutionEventProcessor() {
+		String ip;
+		try {
+			ip = InetAddress.getLocalHost().getHostAddress();
+		} catch (Exception e) {
+			ip = "127.0.0.1";
+		}
+		localIPAddress = ip;
 	}
 
 	public boolean processFlowLikes() {
 		return LOG.isInfoEnabled();
+	}
+
+	/**
+	 * Whether to ignore the execution of the flow with the given name or an unknown exception strategy (where flowName is null in the
+	 * latter case) for the purpose of logging/timing.
+	 */
+	public boolean ignoreFlowLike(String flowName) {
+		if (flowName == null) return false;
+
+		if (flowName.startsWith("____ping____flow")) return true; // CloudHub-injected ping flow
+
+		return false;
 	}
 
 	/**
@@ -94,8 +92,39 @@ public class ExecutionEventProcessor {
 		log(LogLevel.INFO, evt.getMuleContext(), msg, flowName, timestamp, "<===== ending " + name + " | " + dt + " / " + monLogMsg(mon));
 	}
 
+	private String flowLikeName(String flowName) {
+		return flowName == null ? "exception-strategy" : flowName;
+	}
+
 	public boolean processMessageProcessors() {
 		return LOG.isDebugEnabled();
+	}
+
+	/**
+	 * Whether to ignore the execution of the given message processor for the purpose of logging/timing.
+	 */
+	public boolean ignoreMessageProcessor(MessageProcessor mp) {
+		if (mp == null) return true;
+
+		if (mp instanceof LoggerMessageProcessor) return true; // TODO may actually want to __not__ ignore the time spent on logging!
+		if (mp.getClass().isAnonymousClass()) return true; // flow-ref to private flow
+		if (mp instanceof SubflowInterceptingChainLifecycleWrapper) return true; // flow-ref to sub-flow
+		if (mp instanceof OutboundEndpoint) return true; // outbound endpoints are captured as call-outs
+
+		return false;
+	}
+
+	/**
+	 * Returns a non-null destination String if the execution of the given message processor should be treated as a call-out (to the
+	 * returned destination) rather than as a generic message processor execution step.
+	 */
+	public String treatAsCallOutToDestination(MessageProcessor mp) {
+		if (mp == null) return null;
+
+		// if (mp instanceof AbstractDbMessageProcessor) return "JDBC Database"; // TODO return JDBC URL or similar
+		if (mp instanceof DefaultHttpRequester) return ((DefaultHttpRequester) mp).getHost();
+
+		return null;
 	}
 
 	/**
@@ -118,6 +147,10 @@ public class ExecutionEventProcessor {
 		final long dt = endTiming(timestamp, msg, MSG_PROC_TIMING_ID, processorPath);
 		final Monitor mon = MonitorFactory.add(name, UNITS_MS, dt);
 		log(LogLevel.DEBUG, evt.getMuleContext(), msg, flowName, timestamp, "<----- ending " + name + " | " + dt + " / " + monLogMsg(mon));
+	}
+
+	private String mpLogMsg(MessageProcessor mp, String path) {
+		return (mp == null ? "processor" : mp.getClass().getSimpleName()) + " at " + path;
 	}
 
 	public boolean processCallOuts() {
@@ -144,14 +177,6 @@ public class ExecutionEventProcessor {
 		        + monLogMsg(mon));
 	}
 
-	private String flowLikeName(String flowName) {
-		return flowName == null ? "exception-strategy" : flowName;
-	}
-
-	private String mpLogMsg(MessageProcessor mp, String path) {
-		return (mp == null ? "processor" : mp.getClass().getSimpleName()) + " at " + path;
-	}
-
 	private String monLogMsg(Monitor mon) {
 		return new StringBuilder().append(mon.getAvg()).append(" (").append(Math.round(mon.getHits())).append(")").toString();
 	}
@@ -164,8 +189,9 @@ public class ExecutionEventProcessor {
 
 	private void log(LogLevel level, String clusterId, Integer clusterNodeId, String app, String flowName, String messageId,
 	        long timestamp, String logmsg) {
-		final String l = clusterId + " / " + clusterNodeId + " | " + app + " / " + flowName + " | " + messageId + " | " + timestamp + " | "
-		        + logmsg;
+		final String l = new StringBuilder(clusterId).append(" / ").append(clusterNodeId).append(" / ").append(localIPAddress)
+		        .append(" | ").append(app).append(" / ").append(flowName).append(" | ").append(messageId).append(" | ").append(timestamp)
+		        .append(" | ").append(logmsg).toString();
 		if (LogLevel.DEBUG.equals(level)) LOG.debug(l);
 		else LOG.info(l);
 	}

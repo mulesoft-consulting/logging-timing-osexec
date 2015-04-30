@@ -21,9 +21,11 @@ public class PipelineMsgNotifListener implements PipelineMessageNotificationList
 	public void onNotification(PipelineMessageNotification n) {
 		if (!proc.processFlowLikes()) return;
 
+		final String flowName = n.getResourceIdentifier();
+		if (proc.ignoreFlowLike(flowName)) return;
+		
 		final long tstamp = n.getTimestamp();
 		final MuleEvent evt = (MuleEvent) n.getSource();
-		final String flowName = n.getResourceIdentifier();
 
 		final int act = n.getAction();
 		if (act == PipelineMessageNotification.PROCESS_START) proc.startFlowLike(tstamp, evt, flowName);

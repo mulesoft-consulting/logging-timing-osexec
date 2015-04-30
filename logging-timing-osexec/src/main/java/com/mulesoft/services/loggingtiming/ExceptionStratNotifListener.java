@@ -20,12 +20,15 @@ public class ExceptionStratNotifListener implements ExceptionStrategyNotificatio
 	@Override
 	public void onNotification(ExceptionStrategyNotification n) {
 		if (!proc.processFlowLikes()) return;
+		
+		final String flowName = null;
+		if (proc.ignoreFlowLike(flowName)) return;
 
 		final long tstamp = n.getTimestamp();
 		final MuleEvent evt = (MuleEvent) n.getSource();
 
 		final int act = n.getAction();
-		if (act == ExceptionStrategyNotification.PROCESS_START) proc.startFlowLike(tstamp, evt, null);
-		else if (act == ExceptionStrategyNotification.PROCESS_END) proc.endFlowLike(tstamp, evt, null);
+		if (act == ExceptionStrategyNotification.PROCESS_START) proc.startFlowLike(tstamp, evt, flowName);
+		else if (act == ExceptionStrategyNotification.PROCESS_END) proc.endFlowLike(tstamp, evt, flowName);
 	}
 }

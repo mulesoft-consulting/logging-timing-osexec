@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+	<Appenders>
+		<Console name="console" target="SYSTEM_OUT">
+			<PatternLayout pattern="%-5p %d [%t] %c: %m%n" />
+		</Console>
+	</Appenders>
+	<Loggers>
+		<Root level="info">
+			<AppenderRef ref="console" />
+		</Root>
+
+		<Logger name="com" level="debug" />
+		<Logger name="com.gigaspaces" level="error" />
+		<Logger name="com.j_spaces" level="error" />
+		<Logger name="com.mulesoft" level="info" />
+		<Logger name="com.mulesoft.services" level="debug" />
+		<Logger name="com.mulesoft.services.loggingtiming.ExecutionEventProcessor" level="debug" />
+		<Logger name="com.opensys.cloveretl" level="warn" />
+		<Logger name="com.sun.jini" level="error" />
+		<Logger name="httpclient" level="info" />
+		<Logger name="net.jini" level="error" />
+		<Logger name="org.apache" level="warn" />
+		<Logger name="org.apache.cxf" level="warn" />
+		<Logger name="org.jetel" level="warn" />
+		<Logger name="org.mortbay.jetty" level="info" />
+		<Logger name="org.mule" level="info" />
+		<Logger name="org.mule.api.processor.LoggerMessageProcessor" level="debug" />
+		<Logger name="org.mule.lifecycle.AbstractLifecycleManager" level="warn" />
+		<Logger name="org.mule.transformer.simple.AddFlowVariableTransformer" level="warn" />
+		<Logger name="org.mule.transformer.simple.AddPropertyTransformer" level="warn" />
+		<Logger name="org.springframework" level="info" />
+		<Logger name="org.springframework.beans.factory" level="warn" />
+		<Logger name="org.springframework.context" level="debug" />
+		<Logger name="Tracking" level="info" />
+
+	</Loggers>
+</Configuration>

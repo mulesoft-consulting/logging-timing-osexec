@@ -11,6 +11,12 @@ http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/htt
 http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
 http://www.mulesoft.org/schema/mule/management http://www.mulesoft.org/schema/mule/management/current/mule-management.xsd">
 
+	<configuration>
+		<expression-language>
+			<import class="org.apache.commons.lang3.StringUtils" />
+		</expression-language>
+	</configuration>
+
 	<management:jmx-server>
 		<management:connector-server url="service:jmx:rmi:///jndi/rmi://0.0.0.0:1099/jmxserver" />
 		<management:credentials>
@@ -21,8 +27,6 @@ http://www.mulesoft.org/schema/mule/management http://www.mulesoft.org/schema/mu
 		password="gerald" />
 
 	<spring:beans>
-		<spring:bean id="rand" class="java.util.Random" scope="singleton" />
-
 		<spring:bean class="com.mulesoft.services.loggingtiming.LoggingAndTimingNotificationsListenerSetup" lazy-init="false" scope="singleton" />
 	</spring:beans>
 
@@ -42,13 +46,13 @@ http://www.mulesoft.org/schema/mule/management http://www.mulesoft.org/schema/mu
 	</flow>
 
 	<flow name="do-predictable-stuff" processingStrategy="synchronous">
-		<set-variable variableName="delay" value="#[10]" doc:name="set delay of 10 ms" />
-		<expression-component>Thread.sleep(delay)</expression-component>
+		<expression-component doc:name="spend time doing stuff">new BigInteger("1234567890").nextProbablePrime()</expression-component>
 	</flow>
 
 	<flow name="do-important-stuff" processingStrategy="synchronous">
-		<set-variable variableName="delay" value="#[10 + app.registry.get('rand').nextInt(1000)]" doc:name="set delay of 10 - 1009 ms" />
-		<expression-component>Thread.sleep(delay)</expression-component>
+		<!-- <expression-component doc:name="spend random time doing stuff">new BigInteger(512, new Random()).nextProbablePrime()</expression-component> -->
+		<expression-component doc:name="spend time doing stuff">new BigInteger(StringUtils.repeat("1234567890", 10)).nextProbablePrime()
+		</expression-component>
 	</flow>
 
 	<flow name="expose-osexec" processingStrategy="synchronous">
